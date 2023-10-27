@@ -186,7 +186,7 @@ module Pact
             end
 
             def warn_if_actual_has_extra_keys(actual, expected)
-              extra_keys = extract_keys(Array(actual).first) - extract_keys(Array(expected).first)
+              extra_keys = extract_keys(actual) - extract_keys(expected)
 
               if extra_keys.any?
                 pending "Extra keys: #{extra_keys.join(", ")}"
@@ -197,12 +197,15 @@ module Pact
             end
 
             def extract_keys(hash, prefix: '')
-              return extract_keys(hash.first, prefix: "#{prefix}[]") if hash.is_a?(Array) && hash.first.is_a?(Hash)
-              return [] if hash.is_a?(Array)
+              return extract_keys(hash.first) if hash.is_a?(Array)
 
-              hash.reduce([]) do |acc, (k, v)|
-                new_acc = acc.concat(["#{prefix}#{k}"])
-                next new_acc.concat(extract_keys(v, prefix: "#{prefix}#{k}.")) if v.is_a?(Hash)
+              hash.reduce([]) do |acc, (key, value)|
+                next acc if key == 'id'
+
+                new_acc = acc.concat(["#{prefix}#{key}"])
+                next new_acc.concat(extract_keys(value, prefix: "#{prefix}#{key}.")) if value.is_a?(Hash)
+                next new_acc.concat(extract_keys(value.first, prefix: "#{prefix}#{key}[]")) if value.is_a?(Array) && value.first.is_a?(Hash)
+                next new_acc.concat(extract_keys(value.contents, prefix: "#{prefix}#{key}[]")) if value.is_a?(Pact::ArrayLike) && value.contents.is_a?(Hash)
 
                 new_acc
               end
